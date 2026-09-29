@@ -42,3 +42,8 @@ class AccountLockedError(AuthenticationError):
 
 class SessionExpiredError(AuthenticationError):
     code = "session_expired"
+
+
+class ArchiveBuildError(DomainError):
+    status_code = 500
+    code = "archive_build_failed"

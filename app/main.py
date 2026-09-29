@@ -6,6 +6,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app.api import audit, auth, departments_admin, maintenance, metrics, roles, system, users, workflow
+from app.archive.router import router as archive_router
+from app.archive.service import ensure_schema as ensure_archive_schema
 from app.core.errors import DomainError
 from app.database import close_connection, init_db
 from app.routers import affairs, announcements, departments, petitions, residents
@@ -19,6 +21,7 @@ async def lifespan(app: FastAPI):
     del app
     init_db()
     ensure_seismic_schema()
+    ensure_archive_schema()
     yield
     close_connection()
 
@@ -51,6 +54,7 @@ app.include_router(departments.router)
 app.include_router(petitions.router)
 app.include_router(seismic_router)
 app.include_router(compute_router)
+app.include_router(archive_router)
 
 
 @app.get("/")

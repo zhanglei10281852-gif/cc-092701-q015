@@ -311,6 +311,9 @@ PERMISSIONS = [
     ("announcements.write", "维护公告", "announcements", "write"),
     ("audit.read", "查看审计", "audit", "read"),
     ("jobs.run", "执行后台任务", "jobs", "run"),
+    ("archives.read", "查看资料封存", "archives", "read"),
+    ("archives.create", "生成资料封存", "archives", "create"),
+    ("archives.sensitive", "查看未脱敏封存", "archives", "sensitive"),
 ]
 
 
