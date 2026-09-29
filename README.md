@@ -32,7 +32,18 @@ uvicorn app.main:app --host 0.0.0.0 --port 8432
 curl -sS http://127.0.0.1:8432/api/system/health
 ```
 
-课程任务运营接口使用 `/api/compute` 前缀，身份、角色、审计和系统接口分别位于 `/api/auth`、`/api/roles`、`/api/audit` 与 `/api/system`。
+课程任务运营接口使用 `/api/compute` 前缀，身份、角色、审计和系统接口分别位于 `/api/auth`、`/api/roles`、`/api/audit` 与 `/api/system`。认证结束后的资料封存接口位于 `/api/archives`。
+
+## 资料封存
+
+按范围（`all` 全部、`template` 课程模板编码、`project` 项目编码、`student` 学员账号）与截止时刻 `cutoff_at` 生成封存。封存把课程安排、学员提交、成绩发布与变更轨迹在事务内**复制冻结**到独立副本，之后业务表的增删改不会影响已封存内容。
+
+- `POST /api/archives`：生成或复用封存（需要 `archives.read`）。`masking_policy=standard`（默认）按调用者权限掩码教师/学员手机号、邮箱及自由文本中夹带的联系方式，并始终剔除口令摘要；`full` 保留原文，生成与下载都需要 `archives.unmask`。
+- `GET /api/archives/{id}/status`：封存状态、内容摘要、来源清单、数量统计、相邻边界版本与失败原因。
+- `GET /api/archives/{id}/download`：只从冻结副本重组内容，并逐条校验条目摘要与封存内容摘要（SHA-256）。
+- `GET /api/archives`：按范围/状态分页列出版本。
+
+相同范围、截止时刻与脱敏策略复用同一个不可变版本（请求指纹上有部分唯一索引约束）；仅当封存规则版本提升时才并存生成新版本。生成过程在单事务内完成，失败自动回滚不留半成品副本，并把 `building` 行收口为带原因的 `failed` 版本；进程崩溃遗留的陈旧 `building` 行会在下次同范围请求时作废。
 
 ## 测试与编译检查
 
@@ -52,6 +63,7 @@ python -m app.cli compute-demo
 
 ```text
 app/compute/       任务模板、配额、提交、领取、回执和人工干预
+app/archives/       按范围与截止时刻生成的不可变资料封存
 app/api/            登录、角色、审计和系统管理接口
 app/core/           时钟、安全、异常和分页能力
 app/repositories/   SQLite 查询与事务封装

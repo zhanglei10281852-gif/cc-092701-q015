@@ -293,6 +293,50 @@ CREATE TABLE IF NOT EXISTS compute_interventions (
     created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_compute_interventions_task ON compute_interventions(task_id,id);
+
+CREATE TABLE IF NOT EXISTS archives (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    archive_code TEXT NOT NULL UNIQUE,
+    scope TEXT NOT NULL CHECK(scope IN ('all','template','project','student')),
+    scope_value TEXT,
+    cutoff_at TEXT NOT NULL,
+    masking_policy TEXT NOT NULL CHECK(masking_policy IN ('standard','full')),
+    rule_version INTEGER NOT NULL,
+    request_fingerprint TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'building' CHECK(status IN ('building','sealed','failed')),
+    label TEXT NOT NULL DEFAULT '',
+    requested_by_user_id INTEGER,
+    requested_by_name TEXT NOT NULL,
+    caller_permissions_json TEXT NOT NULL DEFAULT '[]',
+    source_manifest_json TEXT,
+    counts_json TEXT,
+    content_digest TEXT,
+    digest_algorithm TEXT NOT NULL DEFAULT 'sha256',
+    failure_code TEXT,
+    failure_reason TEXT,
+    failure_context_json TEXT,
+    built_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+-- 相同范围、截止时刻、脱敏策略与规则版本只允许存在一个封存成功的不可变版本。
+CREATE UNIQUE INDEX IF NOT EXISTS idx_archives_immutable
+    ON archives(request_fingerprint) WHERE status='sealed';
+CREATE INDEX IF NOT EXISTS idx_archives_scope ON archives(scope, cutoff_at, id);
+
+CREATE TABLE IF NOT EXISTS archive_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    archive_id INTEGER NOT NULL REFERENCES archives(id) ON DELETE CASCADE,
+    source_table TEXT NOT NULL,
+    source_id TEXT NOT NULL,
+    revision INTEGER NOT NULL DEFAULT 1,
+    source_created_at TEXT,
+    payload_json TEXT NOT NULL,
+    item_digest TEXT NOT NULL,
+    frozen_at TEXT NOT NULL,
+    UNIQUE(archive_id, source_table, source_id)
+);
+CREATE INDEX IF NOT EXISTS idx_archive_items_archive ON archive_items(archive_id, source_table, id);
 '''
 
 PERMISSIONS = [
@@ -311,6 +355,8 @@ PERMISSIONS = [
     ("announcements.write", "维护公告", "announcements", "write"),
     ("audit.read", "查看审计", "audit", "read"),
     ("jobs.run", "执行后台任务", "jobs", "run"),
+    ("archives.read", "生成与查看资料封存", "archives", "read"),
+    ("archives.unmask", "导出未脱敏封存", "archives", "unmask"),
 ]
 
 
